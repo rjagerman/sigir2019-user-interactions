@@ -9,31 +9,6 @@ from rulpy.math import hinge, grad_hinge, log_sum_exp, grad_additive_dcg
 
 
 @numba.njit(nogil=True)
-def pl_log_prob(r, s):
-    out = 0.0
-    for i in range(s.shape[0]):
-        out += s[r[i]] - log_sum_exp(s[r[i:]])
-    return out
-
-
-@numba.njit(nogil=True)
-def lse_2(e1, e2):
-    m = max(e1, e2)
-    return m + np.log(np.exp(e1 - m) + np.exp(e2 - m))
-
-
-@numba.njit(nogil=True)
-def regularize(w, l1, l2):
-    if l2 > 0.0:
-        w = w - l2 * w
-    
-    if l1 > 0.0:
-        w = np.sign(w) * np.maximum(np.zeros(w.shape), np.abs(w) - l1 * np.abs(w))
-    
-    return w
-
-
-@numba.njit(nogil=True)
 def gradient_pairwise_hinge(x, w, r, c, p_eta):
     final_grad = np.zeros(w.shape)
     s = score(x, w)
@@ -67,6 +42,7 @@ def gradient_pairwise_dcg(x, w, r, c, p_eta):
                 s_ij = s[r[i]] - s[r[j]]
                 h += hinge(s_ij)
                 g = grad_hinge(s_ij)
+                g *= np.abs(i - j) / np.log2(2 + min(i, j))
                 grad += (f_i - f_j) * g
         grad = grad * grad_additive_dcg(h)
         grad = grad / propensity
@@ -74,25 +50,8 @@ def gradient_pairwise_dcg(x, w, r, c, p_eta):
     return final_grad
 
 
-@numba.njit(nogil=True)
-def gradient_pairwise_exp(x, w, r, c, p_eta):
-    grad = np.zeros(w.shape)
-    s = score(x, w)
-    for i in c:
-        for j in range(r.shape[0]):
-            if i != j:
-                propensity = (1.0 / (i + 1)) ** p_eta
-                f_i = x[r[i], :]
-                f_j = x[r[j], :]
-                lse = lse_2(s[r[i]], s[r[j]])
-                g = np.exp(s[r[i]] + s[r[j]] - 2 * lse)
-                grad -= (f_i - f_j) * g / propensity
-    return grad
-
-
 gradients = {
     "hinge": gradient_pairwise_hinge,
-    "exp": gradient_pairwise_exp,
     "dcg": gradient_pairwise_dcg
 }
 

@@ -23,9 +23,6 @@ def run_click_simulation(dataset, indices, behavior, baselines):
 
 @numba.njit(nogil=True)
 def _run_click_simulation(dataset, indices, behavior, baselines, rankings, clicks):
-    #rankings = ListOfVectorsI64()
-    #clicks = ListOfVectorsI64()
-    
     baseline = 0
     w = np.zeros(0, dtype=np.float64)
 
@@ -42,4 +39,3 @@ def _run_click_simulation(dataset, indices, behavior, baselines, rankings, click
 
         rankings.append(r)
         clicks.append(np.where(c > 0)[0])
-    #return rankings, clicks
